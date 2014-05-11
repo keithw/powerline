@@ -10,7 +10,12 @@ def int_to_rgb(num):
 	r = (num >> 16) & 0xff
 	g = (num >> 8) & 0xff
 	b = num & 0xff
-	return r, g, b
+	return [r, g, b]
+
+
+def sgr(ansi):
+	'''Create an SGR escape sequence given 1-3 ANSI modes.'''
+	return '\033[{0}m'.format(';'.join(str(attr) for attr in ansi))
 
 
 class ShellRenderer(Renderer):
@@ -30,23 +35,24 @@ class ShellRenderer(Renderer):
 		False, the argument is reset to the terminal defaults. If an argument
 		is a valid color or attribute, it's added to the ANSI escape code.
 		'''
-		ansi = [0]
+		r = sgr([0])
 		if fg is not None:
 			if fg is False or fg[0] is False:
-				ansi += [39]
+				r += sgr([39])
 			else:
 				if self.term_truecolor:
-					ansi += [38, 2] + list(int_to_rgb(fg[1]))
+					r += sgr([38, 2] + int_to_rgb(fg[1]))
 				else:
-					ansi += [38, 5, fg[0]]
+					r += sgr([38, 5, fg[0]])
 		if bg is not None:
 			if bg is False or bg[0] is False:
-				ansi += [49]
+				r += sgr([49])
 			else:
 				if self.term_truecolor:
-					ansi += [48, 2] + list(int_to_rgb(bg[1]))
+					r += sgr([48, 2] + int_to_rgb(bg[1]))
 				else:
-					ansi += [48, 5, bg[0]]
+					r += sgr([48, 5, bg[0]])
+		ansi = []
 		if attr is not None:
 			if attr is False:
 				ansi += [22]
@@ -59,7 +65,7 @@ class ShellRenderer(Renderer):
 					ansi += [3]
 				elif attr & ATTR_UNDERLINE:
 					ansi += [4]
-		r = '\033[{0}m'.format(';'.join(str(attr) for attr in ansi))
+		r += sgr(ansi)  # OK to combine non-256color escapes
 		if self.tmux_escape:
 			r = '\033Ptmux;' + r.replace('\033', '\033\033') + '\033\\'
 		elif self.screen_escape:
